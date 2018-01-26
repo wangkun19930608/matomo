@@ -8,6 +8,8 @@
  */
 namespace Piwik\Plugins\Live;
 
+use Piwik\API\Request;
+use Piwik\Config;
 use Piwik\Date;
 use Piwik\DataTable;
 use Piwik\Metrics\Formatter;
@@ -181,10 +183,40 @@ class VisitorDetails extends VisitorDetailsAbstract
         $profile['totalVisitDurationPretty'] = $formatter->getPrettyTimeFromSeconds($profile['totalVisitDuration'], true);
 
         $rows                        = $visits->getRows();
+
+        $firstVisit = $profile['visit_first'];
+        if (count($rows) >= Config::getInstance()->General['live_visitor_profile_max_visits_to_aggregate']) {
+            $firstVisit = $this->fetchFirstVisit();
+        }
+
         $profile['userId']           = $visits->getLastRow()->getColumn('userId');
-        $profile['firstVisit']       = $this->getVisitorProfileVisitSummary($profile['visit_first']);
+        $profile['firstVisit']       = $this->getVisitorProfileVisitSummary($firstVisit);
         $profile['lastVisit']        = $this->getVisitorProfileVisitSummary($profile['visit_last']);
         $profile['visitsAggregated'] = count($rows);
+    }
+
+    /**
+     * Fetch first visit from Live API
+     *
+     * @return DataTable\Row
+     */
+    private function fetchFirstVisit()
+    {
+        $response = Request::processRequest('Live.getFirstVisitForVisitorId', [
+            'idSite' => $this->getIdSite(),
+            'visitorId' => $this->getVisitorId(),
+        ]);
+
+        $row                                 = $response->getFirstRow();
+        $visitorData                         = $row->getColumns();
+        $visitorData['firstActionTimestamp'] = strtotime($visitorData['visit_first_action_time']);
+
+        // process referrer details
+        $referrersDetails = new \Piwik\Plugins\Referrers\VisitorDetails();
+        $referrersDetails->setDetails($visitorData);
+        $referrersDetails->extendVisitorDetails($visitorData);
+
+        return new DataTable\Row([DataTable\Row::COLUMNS => $visitorData]);
     }
 
     /**
