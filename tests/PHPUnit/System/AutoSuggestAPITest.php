@@ -214,4 +214,4 @@ class AutoSuggestAPITest extends SystemTestCase
 }
 
 AutoSuggestAPITest::$fixture = new ManyVisitsWithGeoIP();
-AutoSuggestAPITest::$fixture->dateTime = Date::yesterday()->subDay(30)->getDatetime();
+AutoSuggestAPITest::$fixture->dateTime = '2017-06-01 10:00:00';
